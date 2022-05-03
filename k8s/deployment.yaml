@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: goapp
-        image: dmassaro/argocd-poc:v1
+        image: dmassaro/argocd-poc:v2
         resources:
           limits:
             memory: "64Mi"
