@@ -1,194 +1,126 @@
-# Create VPC using CloudFormation
-
-See ./cloudformation for templates.
-
-# VPC requirements
-
-- At least 2 subnets (for HA)
-- All subnets with `Auto-assign IPv4 = on`
-- All subnets with `DNS hostnames = on`
-- Internet Gateway attached to VPC
-- Route Table for all subnets with default gateway (0.0.0.0/0) routing to Internet Gateway
+### Documentação: https://argo-cd.readthedocs.io/en/stable/getting_started/
 
 
-# Required IAM permissions
+### Installation - kubectl:
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-##################################################
-### Remember to fill ${var.cluster_name} below ###
-##################################################
+### Installation - Helm:
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+helm install argo-cd argo/argo-cd --create-namespace --namespace argocd --version 4.5.7 --values resources/argocd-values.yaml
 
-```hcl
-data "aws_caller_identity" "current" {}
+# Check pods
+kubectl get pod -n argocd --watch
 
-resource "aws_iam_user_policy_attachment" "cluster-user-attach" {
-  user       = data.aws_caller_identity.current.user_id
-  policy_arn = aws_iam_policy.cluster.arn
+
+### Install argocd CLI
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
+
+
+### Access The Argo CD API Server:
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+#ou
+kubectl port-forward svc/argocd-server -n argocd 8181:443
+
+
+### The initial password for the admin account is auto-generated and stored as clear text in the field password in a secret named argocd-initial-admin-secret in your Argo CD installation namespace:
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+user: admin
+passwd: resultado do comando acima
+
+
+### Usando argocd cli
+argocd login <ARGOCD_SERVER>  (ex: argocd login localhost:8080)
+argocd account update-password  (trocar a senha)
+
+
+### Criar uma application.yaml:
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: goapp
+  namespace: argocd
+spec:
+  destination:
+    namespace: goapp
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: k8s
+    repoURL: https://github.com/danilomassaro/argocd-poc.git
+    targetRevision: HEAD  
+
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    automated:
+      selfHeal: true
+      prune: true
+
+
+kg applications -n argocd
++ kubectl get applications -n argocd
+NAME    SYNC STATUS   HEALTH STATUS
+goapp   Synced        Healthy
+
+
+kgpo
++ kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+goapp-6cb66d8587-qbf9d   1/1     Running   0          37s
+goapp-6cb66d8587-sk478   1/1     Running   0          37s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+cat main.go 
+package main
+
+import "net/http"
+
+func main() {
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World"))
+	})
+	http.ListenAndServe(":8080", nil)
+
 }
 
-resource "aws_iam_policy" "cluster" {
-    name   = "eks-${var.cluster_name}"
-    path   = "/"
-    policy = <<POLICY
-{
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "EksBasePolicy",
-                    "Effect": "Allow",
-                    "Action": [
-                        "eks:DeleteFargateProfile",
-                        "ec2:CreateDhcpOptions",
-                        "ec2:AuthorizeSecurityGroupIngress",
-                        "eks:DescribeFargateProfile",
-                        "iam:List*",
-                        "ec2:AttachInternetGateway",
-                        "iam:PutRolePolicy",
-                        "iam:AddRoleToInstanceProfile",
-                        "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-                        "ec2:DeleteRouteTable",
-                        "ec2:DeleteVpnGateway",
-                        "ec2:RevokeSecurityGroupEgress",
-                        "ec2:CreateRoute",
-                        "ec2:CreateInternetGateway",
-                        "ec2:DeleteInternetGateway",
-                        "iam:DeleteOpenIDConnectProvider",
-                        "ec2:Associate*",
-                        "autoscaling:DeleteTags",
-                        "iam:GetRole",
-                        "iam:GetPolicy",
-                        "ec2:CreateTags",
-                        "ec2:RunInstances",
-                        "iam:DeleteRole",
-                        "ec2:AssignPrivateIpAddresses",
-                        "ec2:CreateVolume",
-                        "eks:CreateFargateProfile",
-                        "ec2:RevokeSecurityGroupIngress",
-                        "ec2:CreateNetworkInterface",
-                        "autoscaling:AttachInstances",
-                        "ec2:DeleteDhcpOptions",
-                        "eks:UpdateNodegroupConfig",
-                        "ec2:DeleteNatGateway",
-                        "eks:ListClusters",
-                        "autoscaling:DeleteAutoScalingGroup",
-                        "ec2:CreateSubnet",
-                        "iam:GetOpenIDConnectProvider",
-                        "iam:GetRolePolicy",
-                        "ec2:ModifyVpcEndpoint",
-                        "autoscaling:DetachInstances",
-                        "iam:CreateInstanceProfile",
-                        "iam:UntagRole",
-                        "ec2:CreateNatGateway",
-                        "iam:TagRole",
-                        "ec2:CreateVpc",
-                        "ec2:ModifySubnetAttribute",
-                        "ec2:CreateDefaultSubnet",
-                        "iam:DeleteRolePolicy",
-                        "ec2:DeleteLaunchTemplateVersions",
-                        "eks:CreateCluster",
-                        "ec2:ReleaseAddress",
-                        "iam:DeleteInstanceProfile",
-                        "ec2:DeleteLaunchTemplate",
-                        "eks:UntagResource",
-                        "iam:CreatePolicy",
-                        "autoscaling:CreateLaunchConfiguration",
-                        "ec2:Describe*",
-                        "ec2:CreateLaunchTemplate",
-                        "ec2:Disassociate*",
-                        "eks:TagResource",
-                        "iam:UpdateAssumeRolePolicy",
-                        "iam:GetPolicyVersion",
-                        "ec2:DeleteSubnet",
-                        "eks:ListTagsForResource",
-                        "iam:RemoveRoleFromInstanceProfile",
-                        "iam:CreateRole",
-                        "eks:UpdateClusterConfig",
-                        "iam:AttachRolePolicy",
-                        "ec2:DeleteVolume",
-                        "eks:DescribeNodegroup",
-                        "ec2:GetLaunchTemplateData",
-                        "iam:DetachRolePolicy",
-                        "autoscaling:UpdateAutoScalingGroup",
-                        "ec2:DetachVolume",
-                        "eks:ListNodegroups",
-                        "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
-                        "autoscaling:SetDesiredCapacity",
-                        "ec2:CreateRouteTable",
-                        "ec2:DeleteNetworkInterface",
-                        "autoscaling:SuspendProcesses",
-                        "ec2:DetachInternetGateway",
-                        "eks:DeleteCluster",
-                        "eks:DeleteNodegroup",
-                        "autoscaling:CreateOrUpdateTags",
-                        "eks:DescribeCluster",
-                        "iam:DeleteServiceLinkedRole",
-                        "ec2:DeleteVpc",
-                        "ec2:CreateEgressOnlyInternetGateway",
-                        "autoscaling:CreateAutoScalingGroup",
-                        "eks:UpdateClusterVersion",
-                        "autoscaling:Describe*",
-                        "ec2:DeleteTags",
-                        "iam:DeletePolicy",
-                        "eks:UpdateNodegroupVersion",
-                        "ec2:CreateSecurityGroup",
-                        "ec2:ModifyVpcAttribute",
-                        "iam:CreatePolicyVersion",
-                        "ec2:AuthorizeSecurityGroupEgress",
-                        "ec2:DeleteEgressOnlyInternetGateway",
-                        "ec2:DetachNetworkInterface",
-                        "iam:GetInstanceProfile",
-                        "ec2:DeleteRoute",
-                        "eks:CreateNodegroup",
-                        "ec2:AllocateAddress",
-                        "ec2:CreateLaunchTemplateVersion",
-                        "iam:CreateOpenIDConnectProvider",
-                        "eks:ListFargateProfiles",
-                        "autoscaling:DeleteLaunchConfiguration",
-                        "eks:DescribeUpdate",
-                        "ec2:DeleteSecurityGroup",
-                        "ec2:ModifyLaunchTemplate",
-                        "ec2:AttachNetworkInterface"
-                    ],
-                    "Resource": "*"
-                },
-                {
-                    "Sid": "EksRestrictedPolicy",
-                    "Effect": "Allow",
-                    "Action": [
-                        "iam:PassRole",
-                        "iam:CreateServiceLinkedRole"
-                    ],
-                    "Resource": [
-                        "arn:aws:iam::XXXXXXXXXXXX:user/eks-admin-${var.cluster_name}"
-                    ]
-                },
-                {
-                    "Sid": "EksExtraPolicy",
-                    "Effect": "Allow",
-                    "Action": [
-                        "iam:DeleteAccessKey",
-                        "iam:GetUserPolicy",
-                        "iam:DeleteUserPolicy",
-                        "iam:DeleteUser",
-                        "iam:GetUser",
-                        "iam:CreateUser",
-                        "iam:CreateAccessKey",
-                        "iam:PutUserPolicy",
-                        "route53:AssociateVPCWithHostedZone"
-                    ],
-                    "Resource": [
-                        "arn:aws:iam::XXXXXXXXXXXX:user/${var.cluster_name}-velero-backup-*",
-                        "arn:aws:iam::XXXXXXXXXXXX:user/${aws:username}"
-                    ]
-                },
-                {
-                    "Sid": "EksS3Policy",
-                    "Effect": "Allow",
-                    "Action": "s3:*",
-                    "Resource": "arn:aws:s3:::${var.cluster_name}-velero-backup-*"
-                }
-            ]
-}
-POLICY
-}
-```
-# argocd-poc
+
+
+
+Docker:
+
+cat Dockerfile 
+FROM golang:1.17 as build
+
+WORKDIR /app
+COPY . .
+RUN CGO_ENABLED=0 go build -o server main.go
+
+FROM alpine:3.12
+WORKDIR /app
+COPY --from=build /app/server .
+CMD ["./server"]
+
+
+sudo docker build -t dmassaro/argocd-poc:v1 .
+sudo docker push dmassaro/argocd-poc:v1
+sudo docker run --rm -p 8181:8080 dmassaro/argocd-poc:v1    (abrir no browser: localhost:8181)
