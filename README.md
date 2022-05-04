@@ -74,10 +74,6 @@ spec:
       prune: true
 ```
 
-Exemplo usando multi aplicações com argoCD:
-https://github.com/danilomassaro/kind-kong
-
-
 
 
 ```bash
@@ -96,6 +92,8 @@ goapp-6cb66d8587-sk478   1/1     Running   0          37s
 ```
 
 
+Exemplo usando multi aplicações com argoCD:
+https://github.com/danilomassaro/kind-kong
 
 
 
