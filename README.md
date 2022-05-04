@@ -92,8 +92,13 @@ goapp-6cb66d8587-sk478   1/1     Running   0          37s
 ```
 
 
-Exemplo usando multi aplicações com argoCD:
+Exemplo usando multi aplicações (apps of apps):
 https://github.com/danilomassaro/kind-kong
+
+
+Exemplo usando multi clusters:
+https://www.infracloud.io/blogs/multicluster-gitops-argocd/
+https://www.doit-intl.com/automating-kubernetes-multi-cluster-config-with-argo-cd/ (video)
 
 
 
