@@ -74,7 +74,7 @@ spec:
       prune: true
 ```
 
-## Exemplo usando multi aplicações com argoCD:
+Exemplo usando multi aplicações com argoCD:
 https://github.com/danilomassaro/kind-kong
 
 
